@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AYDID Operator Inspection Panel</title>
+    <title>AYDID Optimized Local QA Inspector</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght=300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -63,8 +63,8 @@
     
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-800 pb-3 mb-4 gap-3 theme-border">
         <div>
-            <h1 class="text-xl font-bold text-blue-400">🎙️ AYDID Quality Assurance Inspection Panel</h1>
-            <p class="text-[11px] text-slate-400 mt-0.5">Load Speaker Corpus → Verify Transcriptions & Metadata → Commit Changes Directly</p>
+            <h1 class="text-xl font-bold text-blue-400">🎙️ AYDID Cleanroom Annotation Dashboard</h1>
+            <p class="text-[11px] text-slate-400 mt-0.5">Streamlined layout targeting custom dialect schemas | 10 records per page workspace</p>
         </div>
         <div class="flex items-center gap-2">
             <button id="themeToggleBtn" onclick="toggleTheme()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded text-xs font-semibold transition border border-slate-600">
@@ -74,50 +74,89 @@
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 bg-slate-950 p-4 rounded-lg border border-slate-800 theme-panel theme-border">
-        <div>
-            <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Dialect Folder Sub-Class</label>
-            <input type="text" id="dialectFolder" class="mt-1 w-full theme-input border rounded p-2 text-sm font-medium" placeholder="e.g., YEM_AD">
-        </div>
-        <div>
-            <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Speaker Profile Target ID</label>
-            <div class="flex gap-2">
-                <input type="text" id="speakerId" class="mt-1 w-full theme-input border rounded p-2 text-sm font-medium" placeholder="e.g., YEM_AD_F001">
-                <button onclick="loadSpeakerData()" class="mt-1 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded text-xs font-bold transition shadow">
-                    Load Package
-                </button>
+        <div class="md:col-span-2">
+            <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Load Target Speaker Manifest File (.CSV)</label>
+            <div class="flex gap-3 items-center">
+                <input type="file" id="csvFileInput" accept=".csv"
+                       class="text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer">
             </div>
         </div>
         <div class="flex items-end justify-start md:justify-end">
-            <span id="loadStatus" class="text-xs font-semibold text-amber-400 mb-2">⚠️ Standing by. Load an existing dataset subfolder.</span>
+            <span id="loadStatus" class="text-xs font-semibold text-amber-400 mb-2.5">⚠️ Standby. Awaiting local corpus context mapping.</span>
         </div>
     </div>
 
     <div id="workspace" class="hidden">
-        <div class="flex justify-between items-center mb-4 bg-slate-950/40 p-3 rounded-lg border border-slate-800 theme-border">
-            <h2 class="text-sm font-bold text-slate-300" id="currentSpeakerTitle">Active Review Session: </h2>
-            <button onclick="saveAndCommitChanges()" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-6 py-2 rounded text-xs font-bold transition shadow-lg flex items-center gap-2">
-                <span>💾</span> Commit Verification Changes
+        
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 mb-4 rounded-lg border border-slate-800/80 bg-slate-950/60 theme-border">
+            <div class="flex flex-col">
+                <span class="text-[10px] uppercase font-bold tracking-wider text-slate-500">Active Review Target File</span>
+                <span class="text-sm font-bold text-blue-400 truncate mt-0.5" id="lblActiveFile">-</span>
+            </div>
+            <div class="flex flex-col border-l border-slate-800 pl-4 theme-border">
+                <span class="text-[10px] uppercase font-bold tracking-wider text-slate-500">Speaker Profile Target ID</span>
+                <span class="text-sm font-bold text-slate-200 font-mono mt-0.5" id="lblSpeakerId">-</span>
+            </div>
+            <div class="flex flex-col border-l border-slate-800 pl-4 theme-border">
+                <span class="text-[10px] uppercase font-bold tracking-wider text-slate-500">Gender Profile</span>
+                <span class="text-sm font-bold text-slate-200 mt-0.5" id="lblGender">-</span>
+            </div>
+            <div class="flex flex-col border-l border-slate-800 pl-4 theme-border">
+                <span class="text-[10px] uppercase font-bold tracking-wider text-slate-500">Dialect Region Domain</span>
+                <span class="text-sm font-bold text-purple-400 mt-0.5" id="lblDialect">-</span>
+            </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
+            <div>
+                <span class="text-[10px] text-emerald-400 font-medium" id="schemaStatusAlert">Schema properties loaded...</span>
+            </div>
+            <button onclick="exportModifiedCsv()" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-6 py-2 rounded text-xs font-bold transition shadow-lg flex items-center gap-2">
+                <span>📦</span> Export Verified &amp; Cleaned CSV
             </button>
         </div>
 
         <div class="overflow-x-auto w-full border border-slate-800 rounded-lg bg-slate-950 theme-panel theme-border">
-            <table class="w-full text-left border-collapse table-auto min-w-[1300px]">
+            <table class="w-full text-left border-collapse table-auto min-w-[1650px]">
                 <thead>
                     <tr class="bg-slate-900 border-b border-slate-800 text-[10px] text-slate-400 font-bold uppercase tracking-wider theme-table-head">
-                        <th class="p-2.5 w-12 text-center">#</th>
-                        <th class="p-2.5 w-56">WAV Name</th>
-                        <th class="p-2.5 w-64">Audio Playback</th>
-                        <th class="p-2.5 w-24">Speaker ID</th>
-                        <th class="p-2.5 w-20">Gender</th>
-                        <th class="p-2.5 w-20">Age</th>
-                        <th class="p-2.5 w-20">Dialect</th>
-                        <th class="p-2.5 w-96">Arabic Script Annotation Pipeline</th>
-                        <th class="p-2.5 w-80">Local File Path Reference</th>
+                        <th class="p-2.5 w-12 text-center border-r border-slate-800">#</th>
+                        <th class="p-2.5 w-64 border-r border-slate-800">Audio Stream Controller</th>
+                        <th class="p-2.5 w-32 border-r border-slate-800">Retain?</th>
+                        <th class="p-2.5 w-24 border-r border-slate-800">Dur.</th>
+                        <th class="p-2.5 w-44 border-r border-slate-800">Age Group</th>
+                        <th class="p-2.5 w-32 border-r border-slate-800">Scripting</th>
+                        <th class="p-2.5 w-36 border-r border-slate-800">Source Type</th>
+                        <th class="p-2.5 w-36 border-r border-slate-800">BG Noise</th>
+                        <th class="p-2.5 w-40 border-r border-slate-800">Dialect Keys</th>
+                        <th class="p-2.5 w-[420px] border-r border-slate-800">Arabic Transcription</th>
+                        <th class="p-2.5 w-[380px] border-r border-slate-800">English Translation</th>
+                        <th class="p-2.5 w-28 text-center">Delete Clip</th>
                     </tr>
                 </thead>
                 <tbody id="annotationTableBody" class="text-xs divide-y divide-slate-800/50">
                     </tbody>
             </table>
+        </div>
+
+        <div class="flex justify-between items-center mt-4 bg-slate-950 p-3 rounded-lg border border-slate-800 theme-border text-xs">
+            <div class="text-slate-400 font-medium" id="paginationMetrics">
+                Showing 0 to 0 of 0 entries
+            </div>
+            <div class="flex items-center gap-1.5">
+                <button onclick="changePage(-1)" id="prevPageBtn" class="bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:hover:bg-slate-800 text-slate-200 px-3 py-1.5 rounded font-bold transition border border-slate-700">
+                    ◀ Prev
+                </button>
+                <div class="flex items-center gap-1 text-slate-300 font-semibold px-2">
+                    <span>Page</span>
+                    <span id="currentPageNum" class="text-blue-400">1</span>
+                    <span>/</span>
+                    <span id="totalPagesNum">1</span>
+                </div>
+                <button onclick="changePage(1)" id="nextPageBtn" class="bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:hover:bg-slate-800 text-slate-200 px-3 py-1.5 rounded font-bold transition border border-slate-700">
+                    Next ▶
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -127,17 +166,25 @@
 </div>
 
 <script>
-    // ════════════════════════════════════════════════════════════════
-    //  🔒 CORE PRIVILEGED REPOSITORY ROUTING DATA
-    // ════════════════════════════════════════════════════════════════
-    const GITHUB_TOKEN = "PASTE_YOUR_GHP_TOKEN_HERE"; 
-    const REPO_OWNER = "YOUR_GITHUB_USERNAME"; 
-    const REPO_NAME = "YOUR_REPO_NAME";
-    const BRANCH = "main";
-
-    let currentFileSha = ""; 
+    let loadedFileName = "";
     let csvDataRows = [];    
     let toastTmr = null;
+
+    // Strict Target Storage Layout Schema Blueprint Definitions
+    const TARGET_SCHEMA = [
+        "Retain?", "Dur.", "dialect", "speaker_id", "gender", 
+        "Age Group", "wav_name", "scripting", "Source Type", "BG Noise", 
+        "dialect keys", "script", "English Translation", "Delete Clip", "file_path"
+    ];
+
+    // Global session fields extracted dynamically to clean row redundancy
+    let sessionSpeakerId = "N/A";
+    let sessionGender = "N/A";
+    let sessionDialect = "N/A";
+
+    // Pagination Parameters variables
+    const RECORDS_PER_PAGE = 10;
+    let currentPage = 1;
 
     function toast(msg) {
         const el = document.getElementById('alertToast');
@@ -153,7 +200,7 @@
         document.body.classList.toggle('theme-dark', !isLight);
         const button = document.getElementById('themeToggleBtn');
         if (button) button.textContent = isLight ? '🌞 Light Mode' : '🌙 Dark Mode';
-        localStorage.setItem('aydid-inspect-theme', theme);
+        localStorage.setItem('aydid-clean-theme', theme);
     }
 
     function toggleTheme() {
@@ -162,147 +209,270 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
-        const savedTheme = localStorage.getItem('aydid-inspect-theme') || 'dark';
+        const savedTheme = localStorage.getItem('aydid-clean-theme') || 'dark';
         applyTheme(savedTheme);
+        document.getElementById('csvFileInput').addEventListener('change', handleCsvUpload);
     });
 
-    // 1. Fetch Targeted CSV Tree (Handles the dot separator structure safely)
-    async function loadSpeakerData() {
-        const dialect = document.getElementById('dialectFolder').value.trim();
-        const speaker = document.getElementById('speakerId').value.trim();
-        const statusEl = document.getElementById('loadStatus');
+    // 1. Process target structural file and parse fields
+    function handleCsvUpload(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        loadedFileName = file.name;
+        document.getElementById('lblActiveFile').innerText = file.name;
         
-        if (!dialect || !speaker) {
-            toast("❌ Missing inputs: Provide both Dialect Class and Speaker ID.");
-            return;
-        }
+        const statusEl = document.getElementById('loadStatus');
+        statusEl.textContent = "⏳ Aligning target vectors...";
+        statusEl.className = "text-xs font-semibold text-blue-400 mb-2.5";
 
-        statusEl.textContent = "⏳ Fetching target directory manifest...";
-        statusEl.className = "text-xs font-semibold text-blue-400 mb-2";
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            try {
+                const text = evt.target.result;
+                const lines = text.split('\n').filter(line => line.trim() !== '');
+                
+                let rawRows = lines.map(line => line.split(','));
+                if (rawRows.length === 0) throw new Error("Target system data layer empty.");
 
-        // Mapped to match your exact directory tree name scheme context: TEXT/YEM_AD/YEM_AD_F001.YEM_AD_F001.csv
-        const csvPath = `TEXT/${dialect}/${speaker}.${speaker}.csv`;
-        const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${csvPath}?ref=${BRANCH}`;
+                const fileHeader = rawRows[0].map(h => h.trim().toLowerCase());
+                let alignmentMap = [];
 
-        try {
-            const response = await fetch(url, {
-                headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
-            });
-            
-            if (!response.ok) throw new Error("File path incorrect or token unauthorized.");
-            
-            const json = await response.json();
-            currentFileSha = json.sha; 
-            
-            const csvText = decodeURIComponent(escape(atob(json.content))); 
-            parseAndBuildMatrix(csvText, dialect, speaker);
-            
-            document.getElementById('currentSpeakerTitle').innerText = `Active Review Session: ${speaker}`;
-            document.getElementById('workspace').classList.remove('hidden');
-            statusEl.textContent = "✅ Target package successfully mapped into browser space.";
-            statusEl.className = "text-xs font-semibold text-emerald-400 mb-2";
-        } catch (err) {
-            statusEl.textContent = "❌ Initialization failure.";
-            statusEl.className = "text-xs font-semibold text-rose-400 mb-2";
-            alert("Exception tracking core file structure: " + err.message);
-        }
+                TARGET_SCHEMA.forEach((targetCol) => {
+                    let foundIndex = fileHeader.indexOf(targetCol.toLowerCase());
+                    if (targetCol === "Retain?" && foundIndex === -1) foundIndex = fileHeader.indexOf("playintervalretain?");
+                    if (targetCol === "Delete Clip" && foundIndex === -1) foundIndex = fileHeader.indexOf("delete_clip");
+                    
+                    alignmentMap.push({ name: targetCol, sourceIndex: foundIndex });
+                });
+
+                // Re-map items back to strict alignment indices
+                csvDataRows = rawRows.map((row, rIdx) => {
+                    if (rIdx === 0) return [...TARGET_SCHEMA];
+
+                    return alignmentMap.map(colMap => {
+                        if (colMap.sourceIndex !== -1) {
+                            let val = row[colMap.sourceIndex] || '';
+                            if (colMap.name === "Retain?") {
+                                val = val.trim().toLowerCase();
+                                if (val === "true" || val === "reserve" || val === "") return "reserve";
+                                if (val === "false" || val === "discard") return "discard";
+                            }
+                            return val;
+                        }
+                        // Default Fallbacks
+                        if (colMap.name === "Retain?") return "reserve";
+                        if (colMap.name === "Delete Clip") return "FALSE";
+                        return "";
+                    });
+                });
+
+                // Extract Metadata Properties from First Data Row to populate top metrics banner block
+                if (csvDataRows.length > 1) {
+                    sessionSpeakerId = csvDataRows[1][3] || "N/A";
+                    sessionDialect   = csvDataRows[1][2] || "N/A";
+                    sessionGender    = csvDataRows[1][4] || "N/A";
+                    
+                    document.getElementById('lblSpeakerId').innerText = sessionSpeakerId;
+                    document.getElementById('lblDialect').innerText = sessionDialect;
+                    document.getElementById('lblGender').innerText = sessionGender;
+                }
+
+                currentPage = 1;
+                renderActivePage();
+
+                document.getElementById('workspace').classList.remove('hidden');
+                statusEl.textContent = `✅ Managed ${csvDataRows.length - 1} audio files successfully.`;
+                statusEl.className = "text-xs font-semibold text-emerald-400 mb-2.5";
+            } catch (err) {
+                statusEl.textContent = "❌ Parsing error.";
+                statusEl.className = "text-xs font-semibold text-rose-400 mb-2.5";
+                alert("Runtime layout assignment violation: " + err.message);
+            }
+        };
+        reader.readAsText(file);
     }
 
-    // 2. Build Table Matrix matching your uploaded image's columns
-    function parseAndBuildMatrix(text, dialect, speaker) {
-        const lines = text.split('\n').filter(line => line.trim() !== '');
+    // Helper to standardize loaded raw text fields into our strict dropdown key options
+    function normalizeAgeGroup(val) {
+        if (!val) return "";
+        let clean = val.trim().toLowerCase();
+        if (clean.includes("child") || clean === "<15" || clean === "< 15") return "child";
+        if (clean.includes("young") || clean.includes("15-31")) return "young-adult";
+        if (clean.includes("middle") || clean.includes("31-55")) return "middle-aged";
+        if (clean.includes("old") || clean === ">55" || clean === "> 55") return "old";
+        return clean; // Fallback mapping match
+    }
+
+    // 2. Render Page Rows Engine Loop (10 per window configuration)
+    function renderActivePage() {
         const tableBody = document.getElementById('annotationTableBody');
         tableBody.innerHTML = "";
-        csvDataRows = [];
 
-        lines.forEach((line, index) => {
-            const columns = line.split(','); 
-            csvDataRows.push(columns);
+        const totalRecords = csvDataRows.length - 1;
+        const totalPages = Math.ceil(totalRecords / RECORDS_PER_PAGE) || 1;
 
-            if (index === 0) return; // Keep headers read-only
+        if (currentPage < 1) currentPage = 1;
+        if (currentPage > totalPages) currentPage = totalPages;
 
-            // Mapping based precisely on your CSV columns:
-            // 0: speaker_id | 1: gender | 2: age | 3: dialect | 4: wav_name | 5: script | 6: file_path
-            const spkId    = columns[0] || '';
-            const gender   = columns[1] || '';
-            const age      = columns[2] || '';
-            const dial     = columns[3] || '';
-            const wavName  = columns[4] || '';
-            const script   = columns[5] || '';
-            const filePath = columns[6] || '';
+        const startIndex = ((currentPage - 1) * RECORDS_PER_PAGE) + 1;
+        const endIndex = Math.min(startIndex + RECORDS_PER_PAGE - 1, totalRecords);
 
-            // Resolve GitHub Pages absolute asset url pipeline for the audio playback frame
-            const audioUrl = `https://${REPO_OWNER}.github.io/${REPO_NAME}/WAVS/${dialect}/${speaker}/${wavName}`;
+        document.getElementById('currentPageNum').innerText = currentPage;
+        document.getElementById('totalPagesNum').innerText = totalPages;
+        document.getElementById('paginationMetrics').innerText = totalRecords > 0 
+            ? `Displaying entries ${startIndex} – ${endIndex} out of ${totalRecords}`
+            : `Empty view`;
+
+        document.getElementById('prevPageBtn').disabled = (currentPage === 1);
+        document.getElementById('nextPageBtn').disabled = (currentPage === totalPages);
+
+        if (totalRecords === 0) return;
+
+        for (let i = startIndex; i <= endIndex; i++) {
+            const columns = csvDataRows[i];
+            
+            // TARGET_SCHEMA Position Index Assignment Mapping:
+            const retainVal  = columns[0];
+            const duration   = columns[1];
+            const ageGroup   = normalizeAgeGroup(columns[5]);
+            const wavName    = columns[6];
+            const scripting  = columns[7].trim().toLowerCase();
+            const sourceType = columns[8].trim().toLowerCase();
+            const bgNoise    = columns[9].trim().toLowerCase();
+            const dialKeys   = columns[10];
+            const script     = columns[11];
+            const engTrans   = columns[12];
+            const delClip    = columns[13].toUpperCase();
+
+            const audioSrcTarget = `WAVS/${sessionDialect}/${sessionSpeakerId}/${wavName}`;
 
             const row = document.createElement('tr');
             row.className = "hover:bg-slate-800/30 transition border-b border-slate-800/50";
-            
+            if (retainVal === "discard" || delClip === "TRUE") row.className += " bg-rose-950/15 text-slate-400";
+
             row.innerHTML = `
-                <td class="p-2.5 text-center font-mono text-slate-500">${index}</td>
-                <td class="p-2.5 font-semibold text-slate-300 truncate max-w-[180px]" title="${wavName}">${wavName}</td>
-                <td class="p-2.5">
-                    <audio controls class="h-8 w-64 accent-blue-500">
-                        <source src="${audioUrl}" type="audio/wav">
-                    </audio>
+                <td class="p-2.5 text-center font-mono text-slate-500 bg-slate-900/10 border-r border-slate-800/50">${i}</td>
+                
+                <td class="p-2.5 border-r border-slate-800/50">
+                    <div class="flex flex-col gap-1">
+                        <span class="text-[11px] font-mono font-medium text-slate-400 max-w-[230px] truncate" title="${wavName}">${wavName}</span>
+                        <audio controls class="h-7 w-60 accent-blue-500">
+                            <source src="${audioSrcTarget}" type="audio/wav">
+                            <source src="${wavName}" type="audio/wav">
+                        </audio>
+                    </div>
                 </td>
-                <td class="p-2.5"><input type="text" class="cs" value="${spkId}" onchange="updateCellValue(${index}, 0, this.value)"></td>
-                <td class="p-2.5"><input type="text" class="cs text-center" value="${gender}" onchange="updateCellValue(${index}, 1, this.value)"></td>
-                <td class="p-2.5"><input type="text" class="cs text-center" value="${age}" onchange="updateCellValue(${index}, 2, this.value)"></td>
-                <td class="p-2.5"><input type="text" class="cs text-center" value="${dial}" onchange="updateCellValue(${index}, 3, this.value)"></td>
-                <td class="p-2.5"><input type="text" class="cs font-sans text-right" dir="rtl" value="${script}" onchange="updateCellValue(${index}, 5, this.value)"></td>
-                <td class="p-2.5 font-mono text-[11px] text-slate-500 truncate max-w-[220px]" title="${filePath}">${filePath}</td>
+                
+                <td class="p-1 border-r border-slate-800/50">
+                    <select class="cs text-center font-bold ${retainVal === 'reserve' ? 'text-emerald-400' : 'text-rose-400'}" 
+                            onchange="updateCellValue(${i}, 0, this.value); renderActivePage();">
+                        <option value="reserve" ${retainVal === 'reserve' ? 'selected' : ''}>reserve</option>
+                        <option value="discard" ${retainVal === 'discard' ? 'selected' : ''}>discard</option>
+                    </select>
+                </td>
+                
+                <td class="p-1 border-r border-slate-800/50"><input type="text" class="cs text-center font-mono" value="${duration}" onchange="updateCellValue(${i}, 1, this.value)"></td>
+                
+                <td class="p-1 border-r border-slate-800/50">
+                    <select class="cs text-center" onchange="updateCellValue(${i}, 5, this.value)">
+                        <option value="" ${ageGroup === '' ? 'selected' : ''}>- Choose Age -</option>
+                        <option value="child" ${ageGroup === 'child' ? 'selected' : ''}>child (&lt; 15)</option>
+                        <option value="young-adult" ${ageGroup === 'young-adult' ? 'selected' : ''}>young-adult (15-31)</option>
+                        <option value="middle-aged" ${ageGroup === 'middle-aged' ? 'selected' : ''}>middle-aged (31-55)</option>
+                        <option value="old" ${ageGroup === 'old' ? 'selected' : ''}>old (&gt; 55)</option>
+                    </select>
+                </td>
+                
+                <td class="p-1 border-r border-slate-800/50">
+                    <select class="cs text-center" onchange="updateCellValue(${i}, 7, this.value)">
+                        <option value="" ${scripting === '' ? 'selected' : ''}>- Choose -</option>
+                        <option value="full" ${scripting === 'full' ? 'selected' : ''}>full</option>
+                        <option value="simi" ${scripting === 'simi' ? 'selected' : ''}>simi</option>
+                        <option value="none" ${scripting === 'none' ? 'selected' : ''}>none</option>
+                    </select>
+                </td>
+                
+                <td class="p-1 border-r border-slate-800/50">
+                    <select class="cs" onchange="updateCellValue(${i}, 8, this.value)">
+                        <option value="" ${sourceType === '' ? 'selected' : ''}>- Choose -</option>
+                        <option value="youtube" ${sourceType === 'youtube' ? 'selected' : ''}>Youtube</option>
+                        <option value="smart phone" ${sourceType === 'smart phone' ? 'selected' : ''}>Smart Phone</option>
+                        <option value="tv" ${sourceType === 'tv' ? 'selected' : ''}>TV Broadcast</option>
+                        <option value="radio" ${sourceType === 'radio' ? 'selected' : ''}>Radio Content</option>
+                        <option value="interview" ${sourceType === 'interview' ? 'selected' : ''}>Direct Interview</option>
+                    </select>
+                </td>
+                
+                <td class="p-1 border-r border-slate-800/50">
+                    <select class="cs text-center" onchange="updateCellValue(${i}, 9, this.value)">
+                        <option value="" ${bgNoise === '' ? 'selected' : ''}>- Choose -</option>
+                        <option value="clear" ${bgNoise === 'clear' ? 'selected' : ''}>clear</option>
+                        <option value="some" ${bgNoise === 'some' ? 'selected' : ''}>some noise</option>
+                        <option value="noisy" ${bgNoise === 'noisy' ? 'selected' : ''}>noisy</option>
+                        <option value="music" ${bgNoise === 'music' ? 'selected' : ''}>music background</option>
+                    </select>
+                </td>
+                
+                <td class="p-1 border-r border-slate-800/50"><input type="text" class="cs font-medium text-purple-300" placeholder="e.g. Sanaani, Adeni" value="${dialKeys}" onchange="updateCellValue(${i}, 10, this.value)"></td>
+                
+                <td class="p-1 border-r border-slate-800/50"><input type="text" class="cs font-sans text-right text-blue-300 bg-slate-950/80 text-sm font-semibold" dir="rtl" value="${script}" onchange="updateCellValue(${i}, 11, this.value)"></td>
+                
+                <td class="p-1 border-r border-slate-800/50"><input type="text" class="cs text-emerald-400 font-medium" placeholder="Add transcription summary..." value="${engTrans}" onchange="updateCellValue(${i}, 12, this.value)"></td>
+                
+                <td class="p-2.5 text-center">
+                    <div class="flex items-center justify-center gap-2">
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="radio" name="del_status_${i}" value="FALSE" ${delClip !== 'TRUE' ? 'checked' : ''} 
+                                   onchange="updateCellValue(${i}, 13, 'FALSE'); renderActivePage();"
+                                   class="w-3.5 h-3.5 text-blue-600 bg-slate-700 border-slate-600 focus:ring-blue-500">
+                            <span class="ml-1 text-[10px] text-slate-400 font-medium">Keep</span>
+                        </label>
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="radio" name="del_status_${i}" value="TRUE" ${delClip === 'TRUE' ? 'checked' : ''} 
+                                   onchange="updateCellValue(${i}, 13, 'TRUE'); renderActivePage();"
+                                   class="w-3.5 h-3.5 text-rose-600 bg-slate-700 border-slate-600 focus:ring-rose-500">
+                            <span class="ml-1 text-[10px] text-rose-400 font-bold">DEL</span>
+                        </label>
+                    </div>
+                </td>
             `;
             tableBody.appendChild(row);
-        });
-    }
-
-    function updateCellValue(rowIndex, colIndex, value) {
-        if (csvDataRows[rowIndex]) {
-            csvDataRows[rowIndex][colIndex] = value.replace(/,/g, ' '); // Clean out comma breaks
         }
     }
 
-    // 3. Save Matrix back to Repo Tree
-    async function saveAndCommitChanges() {
-        const dialect = document.getElementById('dialectFolder').value.trim();
-        const speaker = document.getElementById('speakerId').value.trim();
-        const csvPath = `TEXT/${dialect}/${speaker}.${speaker}.csv`;
+    function changePage(direction) {
+        currentPage += direction;
+        renderActivePage();
+        document.getElementById('workspace').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 
-        toast("⏳ Compiling data array strings...");
+    function updateCellValue(absoluteRowIndex, colIndex, value) {
+        if (csvDataRows[absoluteRowIndex]) {
+            csvDataRows[absoluteRowIndex][colIndex] = value.replace(/,/g, ' '); 
+        }
+    }
 
-        const updatedCsvContent = csvDataRows.map(row => row.join(',')).join('\n');
-        const b64Content = btoa(unescape(encodeURIComponent(updatedCsvContent)));
+    // 3. Flatten rows back to valid CSV format and trigger local save file download
+    function exportModifiedCsv() {
+        if (csvDataRows.length === 0) return;
 
-        const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${csvPath}`;
+        toast("⏳ Processing file assembly pipelines...");
+
+        const csvContent = csvDataRows.map(row => row.join(',')).join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
         
-        const bodyPayload = {
-            message: `📦 QA Correction: Edited and verified transcript data for speaker package ${speaker}`,
-            content: b64Content,
-            sha: currentFileSha, 
-            branch: BRANCH
-        };
-
-        try {
-            const response = await fetch(url, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `token ${GITHUB_TOKEN}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(bodyPayload)
-            });
-
-            if (response.ok) {
-                const resJson = await response.json();
-                currentFileSha = resJson.content.sha;
-                toast("🚀 File corrections committed and updated on GitHub successfully!");
-            } else {
-                const errData = await response.json();
-                throw new Error(errData.message || "Push rejected.");
-            }
-        } catch (err) {
-            alert("Commit Rejected: " + err.message);
-        }
+        const downloadLink = document.createElement("a");
+        downloadLink.setAttribute("href", url);
+        downloadLink.setAttribute("download", loadedFileName ? `VERIFIED_${loadedFileName}` : "aydid_verified_manifest.csv");
+        downloadLink.style.visibility = 'hidden';
+        
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        
+        toast("💾 Cleaned CSV database document exported to your local Downloads path!");
     }
 </script>
 </body>
