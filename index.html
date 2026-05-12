@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AYDID Operator Inspection Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans min-h-screen p-6">
+
+    <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow-md">
+        <h1 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">🎙️ AYDID Operator Inspection Panel</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">GitHub Personal Access Token</label>
+                <input type="password" id="ghToken" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border" placeholder="ghp_xxxxxxxxxxxx">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Dialect Folder</label>
+                <input type="text" id="dialectFolder" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border" placeholder="e.g., YEM_AD">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Speaker ID</label>
+                <div class="flex gap-2">
+                    <input type="text" id="speakerId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border" placeholder="e.g., YEM_AD_F001">
+                    <button onclick="loadSpeakerData()" class="mt-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Load</button>
+                </div>
+            </div>
+        </div>
+
+        <hr class="my-6">
+
+        <div id="workspace" class="hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-700" id="currentSpeakerTitle">Viewing Speaker: </h2>
+                <button onclick="saveAndCommitChanges()" class="bg-green-600 text-white px-6 py-2 rounded-md font-medium hover:bg-green-700 shadow">💾 Save & Commit Package</button>
+            </div>
+
+            <div class="overflow-x-auto border rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Audio File</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Player</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Transcript / Annotations</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="annotationTableBody" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration Constants
+        const REPO_OWNER = "YOUR_GITHUB_USERNAME"; 
+        const REPO_NAME = "YOUR_REPO_NAME";
+        const BRANCH = "main";
+
+        let currentFileSha = ""; // Required by GitHub API to update existing files
+        let csvDataRows = [];    // Holds the parsed rows in memory
+
+        // 1. Fetch CSV and parse it
+        async function loadSpeakerData() {
+            const token = document.getElementById('ghToken').value;
+            const dialect = document.getElementById('dialectFolder').value.trim();
+            const speaker = document.getElementById('speakerId').value.trim();
+            
+            if (!token || !dialect || !speaker) {
+                alert("Please fill in Token, Dialect, and Speaker ID.");
+                return;
+            }
+
+            const csvPath = `TEXT/${dialect}/${speaker}/${speaker}.csv`;
+            const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${csvPath}?ref=${BRANCH}`;
+
+            try {
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `token ${token}` }
+                });
+                
+                if (!response.ok) throw new Error("File not found or unauthorized.");
+                
+                const json = await response.json();
+                currentFileSha = json.sha; // Save SHA for later commit
+                
+                // Decode base64 CSV content from GitHub
+                const csvText = atob(json.content); 
+                parseCSV(csvText, dialect, speaker);
+                
+                document.getElementById('currentSpeakerTitle').innerText = `Viewing Speaker: ${speaker}`;
+                document.getElementById('workspace').classList.remove('hidden');
+            } catch (err) {
+                alert("Error loading data: " + err.message);
+            }
+        }
+
+        // 2. Parse CSV into interactive UI rows
+        function parseCSV(text, dialect, speaker) {
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+            const tableBody = document.getElementById('annotationTableBody');
+            tableBody.innerHTML = "";
+            csvDataRows = [];
+
+            // Assumes structure: audio_file, transcript, dialect_tag, etc.
+            // Skipping header row or handling dynamically based on your schema
+            lines.forEach((line, index) => {
+                const columns = line.split(','); // Simple split (consider a robust CSV parser if texts contain commas)
+                csvDataRows.push(columns);
+
+                if (index === 0) return; // Header skip for display, or adapt as needed
+
+                const audioFileName = columns[0]; // e.g., sample1.wav
+                // Path to target audio file in WAVS structure
+                const audioUrl = `https://${REPO_OWNER}.github.io/${REPO_NAME}/WAVS/${dialect}/${speaker}/${audioFileName}`;
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${audioFileName}</td>
+                    <td class="px-4 py-3 whitespace-nowrap">
+                        <audio controls class="h-8 max-w-xs">
+                            <source src="${audioUrl}" type="audio/wav">
+                        </audio>
+                    </td>
+                    <td class="px-4 py-3 w-full">
+                        <input type="text" value="${columns[1] || ''}" onchange="updateRowData(${index}, 1, this.value)" class="w-full border p-1 rounded text-sm">
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap">
+                        <select onchange="updateRowData(${index}, 2, this.value)" class="border p-1 rounded text-sm bg-gray-50">
+                            <option value="Verified" ${columns[2] === 'Verified' ? 'selected' : ''}>Verified ✅</option>
+                            <option value="Needs Correction" ${columns[2] === 'Needs Correction' ? 'selected' : ''}>Fix Needed ⚠️</option>
+                        </select>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        function updateRowData(rowIndex, colIndex, value) {
+            csvDataRows[rowIndex][colIndex] = value;
+        }
+
+        // 3. Convert array back to CSV and commit back to GitHub via API
+        async function saveAndCommitChanges() {
+            const token = document.getElementById('ghToken').value;
+            const dialect = document.getElementById('dialectFolder').value.trim();
+            const speaker = document.getElementById('speakerId').value.trim();
+            const csvPath = `TEXT/${dialect}/${speaker}/${speaker}.csv`;
+
+            // Reconstruct CSV String
+            const updatedCsvContent = csvDataRows.map(row => row.join(',')).join('\n');
+            // Encode content to Base64 safely for GitHub API
+            const b64Content = btoa(unescape(encodeURIComponent(updatedCsvContent)));
+
+            const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${csvPath}`;
+            
+            const bodyData = {
+                message: `Inspector verified package: ${speaker}`,
+                content: b64Content,
+                sha: currentFileSha, // Crucial for updating existing files
+                branch: BRANCH
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(bodyData)
+                });
+
+                if (response.ok) {
+                    const resJson = await response.json();
+                    currentFileSha = resJson.content.sha; // Update local SHA reference
+                    alert("🎉 Package successfully inspected and committed directly back to GitHub repository!");
+                } else {
+                    const errData = await response.json();
+                    throw new Error(errData.message || "Failed to commit changes.");
+                }
+            } catch (err) {
+                alert("Error saving: " + err.message);
+            }
+        }
+    </script>
+</body>
+</html>
