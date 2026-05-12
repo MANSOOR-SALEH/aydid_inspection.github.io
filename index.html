@@ -185,7 +185,11 @@
     let translationReviewMap = new Map();
     let translationInFlight = false;
     const AUDIO_STORAGE_ROOT = "I:/YEMEN_DIALECT_DATASET/WAVS";
-    const TRANSLATION_API_URL = "https://api.mymemory.translated.net/get";
+    const TRANSLATION_ENDPOINTS = [
+        { kind: "lingva", url: "https://lingva.ml/api/v1/ar/en/" },
+        { kind: "lingva", url: "https://translate.projectsegfau.lt/api/v1/ar/en/" },
+        { kind: "mymemory", url: "https://api.mymemory.translated.net/get" },
+    ];
 
     // Strict Target Storage Layout Schema Blueprint Definitions
     const TARGET_SCHEMA = [
@@ -419,11 +423,42 @@
         }
     }
 
+    function getVisibleRowElement(rowIndex) {
+        return document.querySelector(`tr[data-row-index="${rowIndex}"]`);
+    }
+
+    function syncVisibleRowValue(rowIndex, colIndex, value) {
+        const row = getVisibleRowElement(rowIndex);
+        if (!row) return;
+
+        if (colIndex === 1) {
+            const durationInput = row.querySelector('input[data-col="1"]');
+            if (durationInput && durationInput.value !== value) durationInput.value = value;
+        }
+
+        if (colIndex === 12) {
+            const translationInput = row.querySelector('input[data-col="12"]');
+            if (translationInput && translationInput.value !== value) translationInput.value = value;
+
+            const badgeHost = row.querySelector('[data-translation-review]');
+            const reviewText = translationReviewMap.get(rowIndex) || "";
+            if (badgeHost) {
+                badgeHost.innerHTML = reviewText
+                    ? `<span class="inline-flex w-fit items-center rounded-full border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-300">Manual Review</span>`
+                    : "";
+            }
+
+            row.classList.toggle('ring-1', Boolean(reviewText));
+            row.classList.toggle('ring-amber-500/20', Boolean(reviewText));
+        }
+    }
+
     function setTranslatedValue(rowIndex, translatedText, reviewReason) {
         if (!csvDataRows[rowIndex]) return;
 
         csvDataRows[rowIndex][12] = (translatedText || "").trim();
         setTranslationReview(rowIndex, reviewReason);
+        syncVisibleRowValue(rowIndex, 12, csvDataRows[rowIndex][12]);
     }
 
     function getTranslationReviewReason(arabicText, translatedText, hadError) {
@@ -436,17 +471,36 @@
     }
 
     async function translateArabicText(arabicText) {
-        const requestUrl = `${TRANSLATION_API_URL}?q=${encodeURIComponent(arabicText)}&langpair=ar|en`;
-        const response = await fetch(requestUrl);
+        let lastError = null;
 
-        if (!response.ok) {
-            throw new Error(`Translation request failed (${response.status})`);
+        for (const endpoint of TRANSLATION_ENDPOINTS) {
+            try {
+                if (endpoint.kind === "lingva") {
+                    const response = await fetch(`${endpoint.url}${encodeURIComponent(arabicText)}`);
+                    if (!response.ok) throw new Error(`Translation request failed (${response.status})`);
+
+                    const payload = await response.json();
+                    const translatedText = (payload && payload.translation) ? payload.translation : "";
+                    if (translatedText) {
+                        return { translatedText, matchScore: translatedText.trim().toLowerCase() === arabicText.trim().toLowerCase() ? 0.25 : 0.9 };
+                    }
+                } else {
+                    const response = await fetch(`${endpoint.url}?q=${encodeURIComponent(arabicText)}&langpair=ar|en`);
+                    if (!response.ok) throw new Error(`Translation request failed (${response.status})`);
+
+                    const payload = await response.json();
+                    const translatedText = payload?.responseData?.translatedText || "";
+                    const matchScore = Number(payload?.responseData?.match || 0);
+                    if (translatedText) {
+                        return { translatedText, matchScore };
+                    }
+                }
+            } catch (error) {
+                lastError = error;
+            }
         }
 
-        const payload = await response.json();
-        const translatedText = payload?.responseData?.translatedText || "";
-        const matchScore = Number(payload?.responseData?.match || 0);
-        return { translatedText, matchScore };
+        throw lastError || new Error("Translation unavailable");
     }
 
     function queueTranslation(rowIndex, arabicText) {
@@ -495,8 +549,6 @@
             } catch (error) {
                 setTranslatedValue(item.rowIndex, "", getTranslationReviewReason(item.arabicText, "", true));
             }
-
-            renderActivePage();
         }
 
         translationInFlight = false;
@@ -544,7 +596,6 @@
             const durationSeconds = Number.isFinite(probe.duration) ? probe.duration.toFixed(2) : "";
             if (durationSeconds) {
                 keys.forEach(key => audioDurationMap.set(normalizeAudioLookupKey(key), durationSeconds));
-                renderActivePage();
             }
             probe.src = "";
         };
@@ -564,7 +615,7 @@
             if (durationSeconds && csvDataRows[rowIndex]) {
                 csvDataRows[rowIndex][1] = durationSeconds;
                 lookupKeys.forEach(key => audioDurationMap.set(normalizeAudioLookupKey(key), durationSeconds));
-                renderActivePage();
+                syncVisibleRowValue(rowIndex, 1, durationSeconds);
             }
             probe.src = "";
         };
@@ -707,6 +758,7 @@
             }
 
             const row = document.createElement('tr');
+            row.dataset.rowIndex = i;
             row.className = "hover:bg-slate-800/30 transition border-b border-slate-800/50";
             if (retainVal === "discard" || delClip === "TRUE") row.className += " bg-rose-950/15 text-slate-400";
             if (translationReview) row.className += " ring-1 ring-amber-500/20";
@@ -732,7 +784,7 @@
                     </select>
                 </td>
                 
-                <td class="p-1 border-r border-slate-800/50"><input type="text" class="cs text-center font-mono" value="${duration}" onchange="updateCellValue(${i}, 1, this.value)"></td>
+                <td class="p-1 border-r border-slate-800/50"><input data-col="1" type="text" class="cs text-center font-mono" value="${duration}" onchange="updateCellValue(${i}, 1, this.value)"></td>
                 
                 <td class="p-1 border-r border-slate-800/50">
                     <select class="cs text-center" onchange="updateCellValue(${i}, 5, this.value)">
@@ -780,8 +832,10 @@
 
                 <td class="p-1 border-r border-slate-800/50">
                     <div class="flex flex-col gap-1">
-                        <input type="text" class="cs text-emerald-400 font-medium" placeholder="Add translation..." value="${engTrans}" onchange="updateCellValue(${i}, 12, this.value)">
-                        ${translationReview ? `<span class="inline-flex w-fit items-center rounded-full border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-300">Manual Review</span>` : ""}
+                        <input data-col="12" type="text" class="cs text-emerald-400 font-medium" placeholder="Add translation..." value="${engTrans}" onchange="updateCellValue(${i}, 12, this.value)">
+                        <span data-translation-review>
+                            ${translationReview ? `<span class="inline-flex w-fit items-center rounded-full border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-300">Manual Review</span>` : ""}
+                        </span>
                     </div>
                 </td>
                 
@@ -817,6 +871,7 @@
             csvDataRows[absoluteRowIndex][colIndex] = value.replace(/,/g, ' '); 
             if (colIndex === 12) {
                 setTranslationReview(absoluteRowIndex, "");
+                syncVisibleRowValue(absoluteRowIndex, 12, csvDataRows[absoluteRowIndex][12]);
             }
         }
     }
